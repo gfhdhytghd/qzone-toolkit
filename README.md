@@ -1,7 +1,8 @@
-# qzone-toolkit
-QQ空间工具箱
-<br/>使用方法
-<br/>获取cookies的工具：
+# qzone-toolkit | QQ空间工具箱
+## 简介
+本仓库包含一些发送qq空间用的脚本和服务，目前仅支持发送文本和图片，暂时不支持视频
+## 使用方法
+### 获取cookies的工具：
 自动获取cookies（要求qq在同一台机器上启动（可以是napcat或者lagrange））
 ```
 python3 qzonerenewcookies.py qq号
@@ -10,7 +11,9 @@ python3 qzonerenewcookies.py qq号
 ```
 python3 send.py relogin “” qq号
 ```
-发送工具
+selenium的那几个已弃用，想用的自己研究，我不提供技术支持
+
+### 发送工具
 send.py:
 ```
 python3 send.py 文本 图片所在目录路径 qq号
