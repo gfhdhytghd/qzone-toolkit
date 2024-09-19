@@ -3,7 +3,7 @@
 本仓库包含一些发送qq空间用的脚本和服务，目前仅支持发送文本和图片，暂时不支持视频
 ## 使用方法
 ### 获取cookies的工具：
-自动获取cookies（要求qq在同一台机器上启动（可以是napcat或者lagrange））
+自动获取cookies（要求qq在同一台机器上启动（可以是napcat或者LLOB））
 ```
 python3 qzonerenewcookies.py qq号
 ```
