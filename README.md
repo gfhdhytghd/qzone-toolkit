@@ -18,9 +18,9 @@ send.py:
 ```
 python3 send.py 文本 图片所在目录路径 qq号
 ```
-qzone-serv-test.py:
+qzone-serv-api.py:
 ```
-python3 qzone-serv-test.py
+python3 qzone-serv-api.py
 ```
 然后
 ```
@@ -40,6 +40,32 @@ curl -X POST "http://localhost:8000/publish" \
 }'
 
 ```
+qzone-serv-pipe.py:
+```
+python3 qzone-serv-pipe.py
+```
+然后
+```
+echo '{
+  "text": "Your message here",
+  "image": ["image1", "image2"],
+  "cookies": {
+    "qzone_check": "",
+    "skey": "",
+    "uin": "",
+    "p_skey": "",
+    "p_uin": "",
+    "pt4_token": ""
+  }
+}' > ./qzone_in_fifo
+
+```
+注意，这个执行完之后必须再执行
+```
+qzone_out_fifo
+```
+这项设计是为了信息发送队列的正确处理
+
 cookies不全是必要的，但我也不知道哪些是必要的，反正你获取到多少填多少
 image可以是http://,https://,file://,base64://.(只测试过file://，其他的理论上能用)
 

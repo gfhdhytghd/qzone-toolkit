@@ -205,38 +205,53 @@ class QzoneAPI:
         else:
             raise Exception("Failed to publish emotion: " + res.text)
 
+import requests
+import re
+import base64
+import os
 
 def process_image(image_str: str) -> bytes:
-    if image_str.startswith('http://') or image_str.startswith('https://'):
-        # It's a URL, download it
-        response = requests.get(image_str)
-        response.raise_for_status()
-        return response.content
-    elif image_str.startswith('file://'):
-        # It's a file path
-        file_path = image_str[7:]  # Remove 'file://'
-        with open(file_path, 'rb') as f:
-            return f.read()
-    elif image_str.startswith('data:image'):
-        # It's base64 data with data URI scheme
-        # Format: data:image/png;base64,xxx
-        match = re.match(r'data:image/[^;]+;base64,(.*)', image_str)
-        if match:
-            base64_data = match.group(1)
-            return base64.b64decode(base64_data)
-        else:
-            raise ValueError("Invalid data URI format")
-    else:
-        # Try to treat it as base64 string
-        try:
-            return base64.b64decode(image_str)
-        except Exception:
-            # Try to treat it as a file path
-            if os.path.isfile(image_str):
-                with open(image_str, 'rb') as f:
+    try:
+        if image_str.startswith('http://') or image_str.startswith('https://'):
+            # It's a URL, download it
+            response = requests.get(image_str)
+            response.raise_for_status()
+            return response.content
+        elif image_str.startswith('file://'):
+            # It's a file path
+            file_path = image_str[7:]  # Remove 'file://'
+            if os.path.isfile(file_path):
+                with open(file_path, 'rb') as f:
                     return f.read()
             else:
-                raise ValueError("Invalid image format: not a valid base64 string or file path")
+                print(f"File not found: {file_path}")
+        elif image_str.startswith('data:image'):
+            # It's base64 data with data URI scheme
+            # Format: data:image/png;base64,xxx
+            match = re.match(r'data:image/[^;]+;base64,(.*)', image_str)
+            if match:
+                base64_data = match.group(1)
+                return base64.b64decode(base64_data)
+            else:
+                print("Invalid data URI format")
+        else:
+            # Try to treat it as base64 string
+            try:
+                return base64.b64decode(image_str)
+            except Exception:
+                # Try to treat it as a file path
+                if os.path.isfile(image_str):
+                    with open(image_str, 'rb') as f:
+                        return f.read()
+                else:
+                    print(f"Invalid image format or file not found: {image_str}")
+    except Exception as e:
+        with open(f"{pipe_out}", 'w') as pipe:
+                    pipe.write('空间发送图片处理失败')
+                    pipe.flush()
+        continue
+    return None
+
 
 
 # Define the data models using Pydantic
@@ -284,18 +299,28 @@ def process_submission(submission: Submission):
     try:
         tid = qzone.publish_emotion(message, images)
         print(f"Successfully published. TID: {tid}")
-        
+        # 向管道文件写入数据
+        pipe_out = './qzone_out_fifo'
+        with open(f"{pipe_out}", 'w') as pipe:
+            pipe.write('success')
+            pipe.flush()  
+            
     except Exception as e:
         error_msg = f"Failed to publish: {e}"
         traceback.print_exc()
+        pipe_out = './qzone_out_fifo'
+        with open(f"{pipe_out}", 'w') as pipe:
+            pipe.write('failed')
+            pipe.flush()  
 
 
 def main():
-    FIFO_PATH = '/tmp/qzone_fifo'  # 请将此路径替换为您的有名管道文件路径
-
+    FIFO_PATH = './qzone_in_fifo'  
+    pipe_out = './qzone_out_fifo'
     if not os.path.exists(FIFO_PATH):
         os.mkfifo(FIFO_PATH)
-
+    if not os.path.exists(pipe_out):
+        os.mkfifo(pipe_out)
     while True:
         print("等待从管道读取数据...")
         with open(FIFO_PATH, 'r') as fifo:
@@ -305,6 +330,7 @@ def main():
                 if not line:
                     break  # EOF
                 data += line
+            print(data)
             if not data:
                 continue
             try:
@@ -313,6 +339,10 @@ def main():
             except Exception as e:
                 print(f"解析提交数据失败: {e}")
                 traceback.print_exc()
+                pipe_out = './qzone_out_fifo'
+                with open(f"{pipe_out}", 'w') as pipe:
+                    pipe.write('空间发送解析提交数据失败')
+                    pipe.flush()
                 continue
 
             # 处理提交的数据
