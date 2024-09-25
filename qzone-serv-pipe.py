@@ -269,10 +269,16 @@ def process_submission(submission: Submission):
 
     if not message:
         print("No message text provided.")
+        with open(f"{pipe_out}", 'w') as pipe:
+            pipe.write('文本处理错误')
+            pipe.flush()  
         return
 
     if not cookies:
         print("No cookies provided.")
+        with open(f"{pipe_out}", 'w') as pipe:
+            pipe.write('failed')
+            pipe.flush()  
         return
 
     # Process images
@@ -283,6 +289,9 @@ def process_submission(submission: Submission):
             images.append(image_data)
         except Exception as e:
             error_msg = f"Failed to process image {image_str}: {e}"
+            with open(f"{pipe_out}", 'w') as pipe:
+                pipe.write('图像处理错误')
+                pipe.flush()  
             traceback.print_exc()
             return
 
@@ -292,6 +301,9 @@ def process_submission(submission: Submission):
     # Validate token
     if not qzone.token_valid():
         print("Cookies expired or invalid.")
+        with open(f"{pipe_out}", 'w') as pipe:
+            pipe.write('failed')
+            pipe.flush()  
         return
 
     # Publish emotion
