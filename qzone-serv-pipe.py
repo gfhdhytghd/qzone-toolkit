@@ -5,6 +5,8 @@ from typing import List, Optional
 import base64
 import requests
 import re
+from pydantic import BaseModel
+import gc
 
 # URL definitions
 qrcode_url = "https://ssl.ptlogin2.qq.com/ptqrshow?appid=549000912&e=2&l=M&s=3&d=72&v=4&t=0.31232733520361844&daid=5&pt_3rd_aid=0"
@@ -15,14 +17,12 @@ GET_VISITOR_AMOUNT_URL = "https://h5.qzone.qq.com/proxy/domain/g.qzone.qq.com/cg
 UPLOAD_IMAGE_URL = "https://up.qzone.qq.com/cgi-bin/upload/cgi_upload_image"
 EMOTION_PUBLISH_URL = "https://user.qzone.qq.com/proxy/domain/taotao.qzone.qq.com/cgi-bin/emotion_cgi_publish_v6"
 
-
 def generate_gtk(skey: str) -> str:
     """Generate gtk"""
     hash_val = 5381
     for i in range(len(skey)):
         hash_val += (hash_val << 5) + ord(skey[i])
     return str(hash_val & 2147483647)
-
 
 def get_picbo_and_richval(upload_result):
     json_data = upload_result
@@ -46,13 +46,13 @@ def get_picbo_and_richval(upload_result):
 
     return picbo, richval
 
-
 class QzoneAPI:
 
     def __init__(self, cookies_dict: dict = {}):
         self.cookies = cookies_dict
         self.gtk2 = ''
         self.uin = 0
+        self.session = requests.Session()  # 使用 Session
 
         if 'p_skey' in self.cookies:
             self.gtk2 = generate_gtk(self.cookies['p_skey'])
@@ -74,7 +74,7 @@ class QzoneAPI:
         if cookies is None:
             cookies = self.cookies
 
-        return requests.request(
+        return self.session.request(
             method=method,
             url=url,
             params=params,
@@ -83,6 +83,9 @@ class QzoneAPI:
             cookies=cookies,
             timeout=timeout
         )
+
+    def __del__(self):
+        self.session.close()  # 确保 Session 被关闭
 
     def token_valid(self, retry=3) -> bool:
         for i in range(retry):
@@ -101,6 +104,7 @@ class QzoneAPI:
                 traceback.print_exc()
                 if i == retry - 1:
                     return False
+
     def image_to_base64(self, image: bytes) -> str:
         pic_base64 = base64.b64encode(image)
         return pic_base64.decode('utf-8')
@@ -143,7 +147,8 @@ class QzoneAPI:
             timeout=60
         )
         if res.status_code == 200:
-            return eval(res.text[res.text.find('{'):res.text.rfind('}') + 1])
+            json_text = res.text[res.text.find('{'):res.text.rfind('}') + 1]
+            return json.loads(json_text)
         else:
             raise Exception("Image upload failed")
 
@@ -205,12 +210,7 @@ class QzoneAPI:
         else:
             raise Exception("Failed to publish emotion: " + res.text)
 
-import requests
-import re
-import base64
-import os
-
-def process_image(image_str: str) -> bytes:
+def process_image(image_str: str, pipe_out: str) -> bytes:
     try:
         if image_str.startswith('http://') or image_str.startswith('https://'):
             # It's a URL, download it
@@ -246,37 +246,31 @@ def process_image(image_str: str) -> bytes:
                 else:
                     print(f"Invalid image format or file not found: {image_str}")
     except Exception as e:
-        with open(f"{pipe_out}", 'w') as pipe:
-                    pipe.write('空间发送图片处理失败')
-                    pipe.flush()
+        with open(pipe_out, 'w') as pipe:
+            pipe.write('空间发送图片处理失败')
+            pipe.flush()
     return None
-
-
-
-# Define the data models using Pydantic
-from pydantic import BaseModel
 
 class Submission(BaseModel):
     text: str
     image: Optional[List[str]] = []
     cookies: dict
 
-
-def process_submission(submission: Submission):
+def process_submission(submission: Submission, pipe_out: str):
     message = submission.text
     image_list = submission.image
     cookies = submission.cookies
 
     if not message:
         print("No message text provided.")
-        with open(f"{pipe_out}", 'w') as pipe:
+        with open(pipe_out, 'w') as pipe:
             pipe.write('文本处理错误')
             pipe.flush()  
         return
 
     if not cookies:
         print("No cookies provided.")
-        with open(f"{pipe_out}", 'w') as pipe:
+        with open(pipe_out, 'w') as pipe:
             pipe.write('failed')
             pipe.flush()  
         return
@@ -285,11 +279,13 @@ def process_submission(submission: Submission):
     images = []
     for image_str in image_list:
         try:
-            image_data = process_image(image_str)
-            images.append(image_data)
+            image_data = process_image(image_str, pipe_out)
+            if image_data:
+                images.append(image_data)
+            else:
+                raise Exception(f"Image data is None for {image_str}")
         except Exception as e:
-            error_msg = f"Failed to process image {image_str}: {e}"
-            with open(f"{pipe_out}", 'w') as pipe:
+            with open(pipe_out, 'w') as pipe:
                 pipe.write('图像处理错误')
                 pipe.flush()  
             traceback.print_exc()
@@ -301,7 +297,7 @@ def process_submission(submission: Submission):
     # Validate token
     if not qzone.token_valid():
         print("Cookies expired or invalid.")
-        with open(f"{pipe_out}", 'w') as pipe:
+        with open(pipe_out, 'w') as pipe:
             pipe.write('failed')
             pipe.flush()  
         return
@@ -311,19 +307,15 @@ def process_submission(submission: Submission):
         tid = qzone.publish_emotion(message, images)
         print(f"Successfully published. TID: {tid}")
         # 向管道文件写入数据
-        pipe_out = './qzone_out_fifo'
-        with open(f"{pipe_out}", 'w') as pipe:
+        with open(pipe_out, 'w') as pipe:
             pipe.write('success')
             pipe.flush()  
-            
     except Exception as e:
         error_msg = f"Failed to publish: {e}"
         traceback.print_exc()
-        pipe_out = './qzone_out_fifo'
-        with open(f"{pipe_out}", 'w') as pipe:
+        with open(pipe_out, 'w') as pipe:
             pipe.write('failed')
             pipe.flush()  
-
 
 def main():
     FIFO_PATH = './qzone_in_fifo'  
@@ -350,16 +342,16 @@ def main():
             except Exception as e:
                 print(f"解析提交数据失败: {e}")
                 traceback.print_exc()
-                pipe_out = './qzone_out_fifo'
-                with open(f"{pipe_out}", 'w') as pipe:
+                with open(pipe_out, 'w') as pipe:
                     pipe.write('空间发送解析提交数据失败')
                     pipe.flush()
                 continue
 
             # 处理提交的数据
-            process_submission(submission)
+            process_submission(submission, pipe_out)
         print("数据处理完毕，等待下一次输入...")
-
+        # 显式调用垃圾回收
+        gc.collect()
 
 if __name__ == "__main__":
     main()
