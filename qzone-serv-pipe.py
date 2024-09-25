@@ -249,7 +249,6 @@ def process_image(image_str: str) -> bytes:
         with open(f"{pipe_out}", 'w') as pipe:
                     pipe.write('空间发送图片处理失败')
                     pipe.flush()
-        continue
     return None
 
 
