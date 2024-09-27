@@ -62,8 +62,9 @@ echo '{
 ```
 注意，这个执行完之后必须再执行
 ```
-qzone_out_fifo
+cat qzone_out_fifo
 ```
+输出：success：成功 failed：cookies造成的失败 其他：其他失败原因
 这项设计是为了信息发送队列的正确处理
 
 cookies不全是必要的，但我也不知道哪些是必要的，反正你获取到多少填多少
