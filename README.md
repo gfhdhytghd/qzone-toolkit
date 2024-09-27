@@ -18,6 +18,8 @@ send.py:
 ```
 python3 send.py 文本 图片所在目录路径 qq号
 ```
+注，你需要先执行renewcookies,否则他会下个qrcode让你扫描手动登陆
+
 qzone-serv-api.py:
 ```
 python3 qzone-serv-api.py
