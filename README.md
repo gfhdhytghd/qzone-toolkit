@@ -65,7 +65,7 @@ echo '{
 cat qzone_out_fifo
 ```
 输出：success：成功 failed：cookies造成的失败 其他：其他失败原因
-这项设计是为了信息发送队列的正确处理
+<br/>这项设计是为了信息发送队列的正确处理
 
 cookies不全是必要的，但我也不知道哪些是必要的，反正你获取到多少填多少
 image可以是http://,https://,file://,base64://.(只测试过file://，其他的理论上能用)
