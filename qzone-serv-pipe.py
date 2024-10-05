@@ -266,6 +266,7 @@ def process_submission(submission: Submission, pipe_out: str):
         with open(pipe_out, 'w') as pipe:
             pipe.write('文本处理错误')
             pipe.flush()  
+            os.fsync(pipe.fileno())
         return
 
     if not cookies:
@@ -273,6 +274,7 @@ def process_submission(submission: Submission, pipe_out: str):
         with open(pipe_out, 'w') as pipe:
             pipe.write('failed')
             pipe.flush()  
+            os.fsync(pipe.fileno())
         return
 
     # Process images
@@ -300,6 +302,7 @@ def process_submission(submission: Submission, pipe_out: str):
         with open(pipe_out, 'w') as pipe:
             pipe.write('failed')
             pipe.flush()  
+            os.fsync(pipe.fileno())
         return
 
     # Publish emotion
@@ -310,12 +313,14 @@ def process_submission(submission: Submission, pipe_out: str):
         with open(pipe_out, 'w') as pipe:
             pipe.write('success')
             pipe.flush()  
+            os.fsync(pipe.fileno())
     except Exception as e:
         error_msg = f"Failed to publish: {e}"
         traceback.print_exc()
         with open(pipe_out, 'w') as pipe:
             pipe.write('failed')
             pipe.flush()  
+            os.fsync(pipe.fileno())
 
 def main():
     FIFO_PATH = './qzone_in_fifo'  
@@ -327,28 +332,29 @@ def main():
     while True:
         print("等待从管道读取数据...")
         with open(FIFO_PATH, 'r') as fifo:
+            print("读取到了数据")
             data = ''
             while True:
                 line = fifo.readline()
                 if not line:
                     break  # EOF
                 data += line
-            print(data)
-            if not data:
-                continue
-            try:
-                submission_data = json.loads(data)
-                submission = Submission(**submission_data)
-            except Exception as e:
-                print(f"解析提交数据失败: {e}")
-                traceback.print_exc()
-                with open(pipe_out, 'w') as pipe:
-                    pipe.write('空间发送解析提交数据失败')
-                    pipe.flush()
-                continue
+        print(data)
+        if not data:
+            continue
+        try:
+            submission_data = json.loads(data)
+            submission = Submission(**submission_data)
+        except Exception as e:
+            print(f"解析提交数据失败: {e}")
+            traceback.print_exc()
+            with open(pipe_out, 'w') as pipe:
+                pipe.write('空间发送解析提交数据失败')
+                pipe.flush()
+            continue
 
-            # 处理提交的数据
-            process_submission(submission, pipe_out)
+        # 处理提交的数据
+        process_submission(submission, pipe_out)
         print("数据处理完毕，等待下一次输入...")
         # 显式调用垃圾回收
         gc.collect()
