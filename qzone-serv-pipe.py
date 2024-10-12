@@ -266,7 +266,6 @@ def process_submission(submission: Submission, pipe_out: str):
         with open(pipe_out, 'w') as pipe:
             pipe.write('文本处理错误')
             pipe.flush()  
-            os.fsync(pipe.fileno())
         return
 
     if not cookies:
@@ -274,7 +273,6 @@ def process_submission(submission: Submission, pipe_out: str):
         with open(pipe_out, 'w') as pipe:
             pipe.write('failed')
             pipe.flush()  
-            os.fsync(pipe.fileno())
         return
 
     # Process images
@@ -302,7 +300,6 @@ def process_submission(submission: Submission, pipe_out: str):
         with open(pipe_out, 'w') as pipe:
             pipe.write('failed')
             pipe.flush()  
-            os.fsync(pipe.fileno())
         return
 
     # Publish emotion
@@ -313,14 +310,12 @@ def process_submission(submission: Submission, pipe_out: str):
         with open(pipe_out, 'w') as pipe:
             pipe.write('success')
             pipe.flush()  
-            os.fsync(pipe.fileno())
     except Exception as e:
         error_msg = f"Failed to publish: {e}"
         traceback.print_exc()
         with open(pipe_out, 'w') as pipe:
             pipe.write('failed')
             pipe.flush()  
-            os.fsync(pipe.fileno())
 
 def main():
     FIFO_PATH = './qzone_in_fifo'  
