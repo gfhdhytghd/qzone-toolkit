@@ -72,4 +72,14 @@ cat qzone_out_fifo
 cookies不全是必要的，但我也不知道哪些是必要的，反正你获取到多少填多少
 image可以是http://,https://,file://,base64://.(只测试过file://，其他的理论上能用)
 
-
+Qzone_toolkit文件夹：
+这是一个nonebot插件，拷贝到您的plugin目录后调用send函数即可
+```
+require("Qzone_toolkit")
+import onbwall.plugins.Qzone_toolkit as Qzone_toolkit
+testsender = on_command("sendtest", rule=to_me(), priority=5)
+@testsender.handle()
+async def handle():
+    await testsender.send("正在测试发送")
+    await Qzone_toolkit.send("这是一条nonebot插件测试说说", "/home/admin/Onbwall/Onbwall/submissions/1", "2947159526")
+```
