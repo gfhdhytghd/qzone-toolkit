@@ -4,8 +4,11 @@
 ## 使用方法
 ### 获取cookies的工具：
 自动获取cookies（要求qq在同一台机器上启动（可以是napcat或者LLOB））
+
 ```
 python3 qzonerenewcookies.py qq号
+或者
+python3 qzonerenewcookies-napcat.py napcat的http服务器端口号
 ```
 手动重新登陆：会下载一个qrcode.png到当前目录，你需要扫他
 ```
