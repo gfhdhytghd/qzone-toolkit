@@ -18,7 +18,7 @@ def extract_uin_from_cookie(cookie_str: str) -> str:
 
 async def fetch_cookies(domain: str, port: str) -> dict:
     url = f"http://127.0.0.1:{port}/get_cookies?domain={domain}"
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
         resp = await client.get(url)
         resp.raise_for_status()
         data = resp.json()
