@@ -3,6 +3,27 @@ import json
 import sys
 import os
 
+
+def load_config(path: str = "oqqwall.config") -> dict:
+    config = {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for raw in f:
+                line = raw.partition("#")[0].strip()
+                if not line or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                config[key.strip()] = value.strip().strip('"')
+    except FileNotFoundError as exc:
+        raise RuntimeError("未找到 oqqwall.config，请先运行 main.sh 初始化") from exc
+    return config
+
+
+CONFIG = load_config()
+NAPCAT_ACCESS_TOKEN = CONFIG.get("napcat_access_token") or os.environ.get("NAPCAT_ACCESS_TOKEN")
+if not NAPCAT_ACCESS_TOKEN:
+    raise RuntimeError("napcat_access_token 未配置，请更新 oqqwall.config")
+
 def get_cookie_file_path(uin: str) -> str:
     return os.path.join(os.getcwd(), f"cookies-{uin}.json")
 
@@ -18,8 +39,9 @@ def extract_uin_from_cookie(cookie_str: str) -> str:
 
 async def fetch_cookies(domain: str, port: str) -> dict:
     url = f"http://127.0.0.1:{port}/get_cookies?domain={domain}"
+    headers = {"Authorization": f"Bearer {NAPCAT_ACCESS_TOKEN}"}
     async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
-        resp = await client.get(url)
+        resp = await client.get(url, headers=headers)
         resp.raise_for_status()
         data = resp.json()
         if data.get("status") != "ok" or "cookies" not in data.get("data", {}):
