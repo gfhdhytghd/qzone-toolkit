@@ -45,35 +45,36 @@ curl -X POST "http://localhost:8000/publish" \
 }'
 
 ```
-qzone-serv-pipe.py:
+qzone-serv-UDS.py（推荐，IPC 使用 Unix Domain Socket）:
 ```
-python3 qzone-serv-pipe.py
+python3 qzone-serv-UDS.py
 ```
-然后
+发送一条请求（socat）：
 ```
-echo '{
+printf '%s' '{
   "text": "Your message here",
-  "image": ["image1", "image2"],
+  "image": ["file:///path/to/img1.jpg", "https://example.com/2.png"],
   "cookies": {
     "qzone_check": "",
     "skey": "",
-    "uin": "",
+    "uin": "o12345678",
     "p_skey": "",
     "p_uin": "",
     "pt4_token": ""
   }
-}' > ./qzone_in_fifo
+}' | socat - UNIX-CONNECT:"${QZONE_UDS_PATH:-./qzone_uds.sock}"
+```
+返回：
+- success：成功
+- failed：cookies 失效或下游失败
+- 其他中文错误串：图像/解析错误等
 
-```
-注意，这个执行完之后必须再执行
-```
-cat qzone_out_fifo
-```
-输出：success：成功 failed：cookies造成的失败 其他：其他失败原因
-<br/>这项设计是为了信息发送队列的正确处理
+环境变量：
+- `QZONE_UDS_PATH` 指定 socket 路径（默认 `./qzone_uds.sock`）
+<br/>说明：服务内部维护串行队列，按接入顺序依次处理，避免并发干扰。
 
-cookies不全是必要的，但我也不知道哪些是必要的，反正你获取到多少填多少
-image可以是http://,https://,file://,base64://.(只测试过file://，其他的理论上能用)
+cookies不全是必要的（建议包含 `uin`/`skey`/`p_skey`）。
+image 支持：http://、https://、file://、data:image;base64,...、原始base64、以及本地文件路径。
 
 Qzone_toolkit文件夹：
 这是一个nonebot插件，拷贝到您的plugin目录后调用send函数即可
