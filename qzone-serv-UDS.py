@@ -591,14 +591,36 @@ class UDSServer:
 
 def main():
     sock_path = os.getenv("QZONE_UDS_PATH", "./qzone_uds.sock")
-    server = UDSServer(sock_path)
-    try:
-        logger.info("启动 qzone-serv-UDS (串行队列模式)...")
-        server.start()
-    except KeyboardInterrupt:
-        logger.info("收到中断信号，准备退出...")
-    finally:
-        server.stop()
+    logger.info("启动 qzone-serv-UDS (串行队列模式，自愈启用)...")
+    while True:
+        server = UDSServer(sock_path)
+        try:
+            server.start()
+        except KeyboardInterrupt:
+            logger.info("收到中断信号，准备退出...")
+            try:
+                server.stop()
+            except Exception:
+                pass
+            break
+        except Exception as e:
+            logger.error(f"服务异常退出，将在1秒后自愈重启: {e}")
+            logger.debug("Traceback:\n" + traceback.format_exc())
+            try:
+                server.stop()
+            except Exception:
+                pass
+            time.sleep(1)
+            continue
+        else:
+            # start() 正常返回（通常不会发生），也进行自愈重启
+            logger.warning("start() 正常返回，1秒后自愈重启监听...")
+            try:
+                server.stop()
+            except Exception:
+                pass
+            time.sleep(1)
+            continue
 
 
 if __name__ == "__main__":
